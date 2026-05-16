@@ -1,0 +1,8 @@
+{
+  "name": "Enterprise ERP & POS System",
+  "description": "A comprehensive ERP and Point of Sale system for single and multi-outlet businesses, including inventory, CRM, finance, and HR modules.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

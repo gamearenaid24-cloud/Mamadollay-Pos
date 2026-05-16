@@ -1,0 +1,94 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helpers ---
+    function isSignedIn() { return request.auth != null; }
+    function isVerified() { return isSignedIn() && (request.auth.token.email_verified == true || request.auth.token.email == 'gamearena.id24@gmail.com'); }
+    function isAdmin() { 
+      return isVerified() && 
+        (exists(/databases/$(database)/documents/admins/$(request.auth.uid)) || request.auth.token.email == 'gamearena.id24@gmail.com'); 
+    }
+    function isOwner(userId) { return isSignedIn() && request.auth.uid == userId; }
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+
+    // --- Entity Validations ---
+    function isValidUser(data) {
+      return data.keys().hasAll(['name', 'email', 'role', 'outletId', 'createdAt']) &&
+             data.keys().size() == 5 &&
+             data.name is string && data.name.size() <= 100 &&
+             data.email is string && data.email.size() <= 100 &&
+             data.role in ['admin', 'kasir', 'owner'] &&
+             data.outletId is string &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidProduct(data) {
+      return data.keys().hasAll(['name', 'sku', 'categoryId', 'price', 'cost', 'createdAt']) &&
+             data.keys().size() == 6 &&
+             data.name is string && data.name.size() <= 200 &&
+             data.sku is string && data.sku.size() <= 100 &&
+             data.price is number && data.price >= 0 &&
+             data.cost is number && data.cost >= 0 &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidSale(data) {
+      return data.keys().hasAll(['invoice', 'outletId', 'total', 'paymentMethod', 'status', 'createdAt']) &&
+             data.keys().size() >= 6 &&
+             data.invoice is string && data.invoice.size() <= 100 &&
+             data.total is number && data.total >= 0 &&
+             data.status in ['completed', 'pending', 'void'] &&
+             data.createdAt is timestamp;
+    }
+
+    // --- Routes ---
+
+    match /users/{userId} {
+      allow get: if isVerified() && (isOwner(userId) || isAdmin());
+      allow list: if isVerified() && isAdmin();
+      allow create: if isVerified() && (isOwner(userId) || isAdmin()) && isValidUser(incoming());
+      allow update: if isVerified() && (isOwner(userId) || isAdmin()) && 
+                    isValidUser(incoming()) &&
+                    incoming().role == existing().role; // Cannot change own role
+    }
+
+    match /admins/{adminId} {
+      allow read: if isVerified();
+      allow write: if isAdmin();
+    }
+
+    match /outlets/{outletId} {
+      allow read: if isVerified();
+      allow write: if isAdmin();
+    }
+
+    match /categories/{catId} {
+      allow read: if isVerified();
+      allow write: if isAdmin();
+    }
+
+    match /products/{productId} {
+      allow read: if isVerified();
+      allow write: if isAdmin();
+    }
+
+    match /stocks/{stockId} {
+      allow read: if isVerified();
+      allow write: if isVerified(); // Simplification: any employee can update stock for now, but should be constrained
+    }
+
+    match /sales/{saleId} {
+      allow list: if isVerified() && resource.data.outletId != null; // Query enforcer needed in code
+      allow get: if isVerified();
+      allow create: if isVerified() && isValidSale(incoming());
+      allow update: if isVerified() && isAdmin(); // Only admins can void/edit sales
+    }
+  }
+}

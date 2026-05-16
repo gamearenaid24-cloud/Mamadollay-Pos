@@ -1,0 +1,104 @@
+{
+  "entities": {
+    "Outlet": {
+      "title": "Outlet",
+      "description": "Store location",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "address": { "type": "string" },
+        "phone": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name"]
+    },
+    "User": {
+      "title": "User",
+      "description": "System user",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "kasir", "owner"] },
+        "outletId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "email", "role"]
+    },
+    "Category": {
+      "title": "Category",
+      "description": "Product category",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" }
+      },
+      "required": ["name"]
+    },
+    "Product": {
+      "title": "Product",
+      "description": "Saleable item",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "sku": { "type": "string" },
+        "categoryId": { "type": "string" },
+        "price": { "type": "number" },
+        "cost": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "sku", "price"]
+    },
+    "Stock": {
+      "title": "Stock",
+      "description": "Inventory count per outlet",
+      "type": "object",
+      "properties": {
+        "productId": { "type": "string" },
+        "outletId": { "type": "string" },
+        "qty": { "type": "number" }
+      },
+      "required": ["productId", "outletId", "qty"]
+    },
+    "Sale": {
+      "title": "Sale",
+      "description": "Transaction record",
+      "type": "object",
+      "properties": {
+        "invoice": { "type": "string" },
+        "customerId": { "type": "string" },
+        "outletId": { "type": "string" },
+        "total": { "type": "number" },
+        "paymentMethod": { "type": "string" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["invoice", "outletId", "total"]
+    }
+  },
+  "firestore": {
+    "outlets": {
+      "schema": "Outlet",
+      "description": "Collection of outlets"
+    },
+    "users": {
+      "schema": "User",
+      "description": "Collection of system users"
+    },
+    "categories": {
+      "schema": "Category",
+      "description": "Collection of product categories"
+    },
+    "products": {
+      "schema": "Product",
+      "description": "Collection of products"
+    },
+    "stocks": {
+      "schema": "Stock",
+      "description": "Inventory status"
+    },
+    "sales": {
+      "schema": "Sale",
+      "description": "Transaction headers"
+    }
+  }
+}
