@@ -33,7 +33,7 @@ export default function Dashboard() {
     if (!outletId) return;
 
     // 1. Listen to Sales for stats
-    const salesQuery = query(collection(db, 'sales'), where('outletId', '==', outletId));
+    const salesQuery = query(collection(db, 'sales'), where('outlet_id', '==', outletId));
     const unsubscribeSales = onSnapshot(salesQuery, (snapshot) => {
       let total = 0;
       snapshot.forEach(doc => {
@@ -49,7 +49,7 @@ export default function Dashboard() {
     // 2. Query Recent Sales
     const recentQuery = query(
       collection(db, 'sales'), 
-      where('outletId', '==', outletId),
+      where('outlet_id', '==', outletId),
       orderBy('createdAt', 'desc'),
       limit(5)
     );
@@ -63,7 +63,7 @@ export default function Dashboard() {
         const data = doc.data();
         sales.push({
           inv: data.invoice,
-          outlet: outletMap.get(data.outletId) || 'Unknown',
+          outlet: outletMap.get(data.outlet_id) || 'Unknown',
           amount: data.total,
           status: data.status?.toUpperCase() || 'PAID'
         });

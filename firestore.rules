@@ -20,12 +20,12 @@ service cloud.firestore {
 
     // --- Entity Validations ---
     function isValidUser(data) {
-      return data.keys().hasAll(['name', 'email', 'role', 'outletId', 'createdAt']) &&
+      return data.keys().hasAll(['name', 'email', 'role', 'outlet_id', 'createdAt']) &&
              data.keys().size() == 5 &&
              data.name is string && data.name.size() <= 100 &&
              data.email is string && data.email.size() <= 100 &&
              data.role in ['admin', 'kasir', 'owner'] &&
-             data.outletId is string &&
+             data.outlet_id is string &&
              data.createdAt is timestamp;
     }
 
@@ -40,7 +40,7 @@ service cloud.firestore {
     }
 
     function isValidSale(data) {
-      return data.keys().hasAll(['invoice', 'outletId', 'total', 'paymentMethod', 'status', 'createdAt']) &&
+      return data.keys().hasAll(['invoice', 'outlet_id', 'total', 'paymentMethod', 'status', 'createdAt']) &&
              data.keys().size() >= 6 &&
              data.invoice is string && data.invoice.size() <= 100 &&
              data.total is number && data.total >= 0 &&
@@ -51,9 +51,9 @@ service cloud.firestore {
     // --- Routes ---
 
     match /users/{userId} {
-      allow get: if isVerified() && (isOwner(userId) || isAdmin());
+      allow get: if isSignedIn() && (isOwner(userId) || isAdmin());
       allow list: if isVerified() && isAdmin();
-      allow create: if isVerified() && (isOwner(userId) || isAdmin()) && isValidUser(incoming());
+      allow create: if isSignedIn() && (isOwner(userId) || isAdmin()) && isValidUser(incoming());
       allow update: if isVerified() && (isOwner(userId) || isAdmin()) && 
                     isValidUser(incoming()) &&
                     incoming().role == existing().role; // Cannot change own role
@@ -85,7 +85,7 @@ service cloud.firestore {
     }
 
     match /sales/{saleId} {
-      allow list: if isVerified() && resource.data.outletId != null; // Query enforcer needed in code
+      allow list: if isVerified() && resource.data.outlet_id != null; // Query enforcer needed in code
       allow get: if isVerified();
       allow create: if isVerified() && isValidSale(incoming());
       allow update: if isVerified() && isAdmin(); // Only admins can void/edit sales

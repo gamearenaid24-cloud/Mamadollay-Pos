@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { formatCurrency, cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
-import { db, handleFirestoreError } from '../lib/firebase';
+import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { 
   collection, 
   query, 
@@ -26,13 +26,6 @@ import {
   onSnapshot
 } from 'firebase/firestore';
 
-enum OperationType {
-  CREATE = 'create',
-  UPDATE = 'update',
-  LIST = 'list',
-  GET = 'get',
-}
-
 export default function POS() {
   const { outletId } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
@@ -45,7 +38,7 @@ export default function POS() {
     if (!outletId) return;
 
     // Listen to changes in stocks for this outlet
-    const stocksQuery = query(collection(db, 'stocks'), where('outletId', '==', outletId));
+    const stocksQuery = query(collection(db, 'stocks'), where('outlet_id', '==', outletId));
     const unsubscribe = onSnapshot(stocksQuery, async (stocksSnap) => {
       try {
         const productsSnap = await getDocs(collection(db, 'products'));
@@ -118,7 +111,7 @@ export default function POS() {
       // 1. Create Sale Header
       const saleRef = await addDoc(collection(db, 'sales'), {
         invoice: `INV-${Date.now()}`,
-        outletId,
+        outlet_id: outletId,
         total,
         paymentMethod: 'CASH',
         status: 'completed',

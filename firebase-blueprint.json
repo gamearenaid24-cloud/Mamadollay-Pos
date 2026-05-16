@@ -20,7 +20,7 @@
         "name": { "type": "string" },
         "email": { "type": "string" },
         "role": { "type": "string", "enum": ["admin", "kasir", "owner"] },
-        "outletId": { "type": "string" },
+        "outlet_id": { "type": "string" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["name", "email", "role"]
@@ -54,10 +54,10 @@
       "type": "object",
       "properties": {
         "productId": { "type": "string" },
-        "outletId": { "type": "string" },
+        "outlet_id": { "type": "string" },
         "qty": { "type": "number" }
       },
-      "required": ["productId", "outletId", "qty"]
+      "required": ["productId", "outlet_id", "qty"]
     },
     "Sale": {
       "title": "Sale",
@@ -66,13 +66,13 @@
       "properties": {
         "invoice": { "type": "string" },
         "customerId": { "type": "string" },
-        "outletId": { "type": "string" },
+        "outlet_id": { "type": "string" },
         "total": { "type": "number" },
         "paymentMethod": { "type": "string" },
         "status": { "type": "string" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["invoice", "outletId", "total"]
+      "required": ["invoice", "outlet_id", "total"]
     }
   },
   "firestore": {

@@ -53,7 +53,7 @@ export async function seedDemoData() {
     });
     batch.set(doc(db, 'stocks', `${p.id}-${outletId}`), {
       productId: p.id,
-      outletId,
+      outlet_id: outletId,
       qty: Math.floor(Math.random() * 100) + 20
     });
   });

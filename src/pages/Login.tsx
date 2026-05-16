@@ -1,27 +1,63 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Lock, Mail, ChevronRight } from 'lucide-react';
+import { Lock, Mail, ChevronRight, Globe } from 'lucide-react';
 import { motion } from 'motion/react';
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '../lib/firebase';
+import { cn } from '../lib/utils';
+import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
+import { auth, db } from '../lib/firebase';
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { seedDemoData } from '../lib/seed';
 
 export default function Login() {
   const [email, setEmail] = useState('admin@mail.com');
   const [password, setPassword] = useState('123456');
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [seedLoading, setSeedLoading] = useState(false);
   const [error, setError] = useState('');
 
   const handleSeed = async () => {
     setSeedLoading(true);
+    setError('');
     try {
       await seedDemoData();
       setError('Seed complete! You can now login.');
-    } catch (err) {
-      setError('Seed failed. Check console.');
+    } catch (err: any) {
+      if (err.code === 'auth/operation-not-allowed') {
+        setError('PROVIDER DISABLED: Please enable Email/Password in Firebase Console (Build > Authentication > Sign-in method)');
+      } else {
+        setError('Seed failed. Check console.');
+      }
     } finally {
       setSeedLoading(false);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    setGoogleLoading(true);
+    setError('');
+    try {
+      const provider = new GoogleAuthProvider();
+      const result = await signInWithPopup(auth, provider);
+      
+      // Check if user exists in Firestore, if not create a default profile
+      const userRef = doc(db, 'users', result.user.uid);
+      const userDoc = await getDoc(userRef);
+      
+      if (!userDoc.exists()) {
+        await setDoc(userRef, {
+          name: result.user.displayName || 'Google User',
+          email: result.user.email,
+          role: 'kasir',
+          outlet_id: 'outlet-jkt-01', // Default outlet
+          createdAt: serverTimestamp()
+        });
+      }
+    } catch (err: any) {
+      console.error('Google login error:', err);
+      setError('Google Authentication failed');
+    } finally {
+      setGoogleLoading(false);
     }
   };
 
@@ -33,7 +69,9 @@ export default function Login() {
       await signInWithEmailAndPassword(auth, email, password);
     } catch (err: any) {
       console.error('Login error:', err);
-      if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
+      if (err.code === 'auth/operation-not-allowed') {
+        setError('PROVIDER DISABLED: Enable Email/Password in Firebase Console');
+      } else if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
         setError('Invalid credentials');
       } else if (err.code === 'auth/network-request-failed') {
         setError('Network error. Check connection.');
@@ -123,16 +161,33 @@ export default function Login() {
               <motion.div 
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="p-3 bg-red-50 border border-red-100 text-red-600 text-[10px] rounded-lg font-bold uppercase tracking-tight"
+                className={cn(
+                  "p-4 rounded-lg text-[10px] font-bold border uppercase tracking-tight",
+                  error.includes('PROVIDER DISABLED') 
+                    ? "bg-amber-50 text-amber-700 border-amber-200" 
+                    : "bg-red-50 text-red-600 border-red-100"
+                )}
               >
-                {error}
+                <div className="flex gap-3">
+                  <div className="shrink-0 text-base">⚠️</div>
+                  <div>
+                    {error}
+                    {error.includes('PROVIDER DISABLED') && (
+                      <div className="mt-2 text-[9px] opacity-80 leading-relaxed normal-case font-medium">
+                        Action Required: You must enable sign-in providers in the Firebase Console.<br/>
+                        1. Visit Firebase Console &gt; Build &gt; Authentication &gt; Sign-in method<br/>
+                        2. Enable "Email/Password" and "Google"
+                      </div>
+                    )}
+                  </div>
+                </div>
               </motion.div>
             )}
 
             <button
               type="submit"
-              disabled={loading}
-              className="w-full bg-slate-900 text-white font-bold py-4 rounded-lg hover:bg-blue-600 transition-all flex items-center justify-center gap-2 shadow-lg active:scale-[0.98] disabled:opacity-50 text-xs uppercase tracking-widest"
+              disabled={loading || googleLoading}
+              className="w-full bg-slate-900 text-white font-bold py-4 rounded-lg hover:bg-slate-800 transition-all flex items-center justify-center gap-2 shadow-lg active:scale-[0.98] disabled:opacity-50 text-xs uppercase tracking-widest"
             >
               {loading ? (
                 <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -140,6 +195,31 @@ export default function Login() {
                 <>
                   <span>Initialize Session</span>
                   <ChevronRight className="w-4 h-4" />
+                </>
+              )}
+            </button>
+
+            <div className="relative py-4">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-slate-200"></div>
+              </div>
+              <div className="relative flex justify-center text-[10px] uppercase font-bold tracking-tighter">
+                <span className="bg-white px-4 text-slate-400">Or Federated Access</span>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleGoogleLogin}
+              disabled={loading || googleLoading}
+              className="w-full bg-white border border-slate-200 text-slate-700 font-bold py-4 rounded-lg hover:bg-slate-50 transition-all flex items-center justify-center gap-3 shadow-sm active:scale-[0.98] disabled:opacity-50 text-xs uppercase tracking-widest"
+            >
+              {googleLoading ? (
+                <div className="w-4 h-4 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin" />
+              ) : (
+                <>
+                  <Globe className="w-4 h-4" />
+                  <span>Sign in with Google Account</span>
                 </>
               )}
             </button>
