@@ -44,6 +44,7 @@
         "categoryId": { "type": "string" },
         "price": { "type": "number" },
         "cost": { "type": "number" },
+        "imageUrl": { "type": "string" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["name", "sku", "price"]

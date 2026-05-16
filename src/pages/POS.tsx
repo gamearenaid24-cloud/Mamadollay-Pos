@@ -54,14 +54,16 @@ export default function POS() {
         const prodList: Product[] = [];
         productsSnap.forEach(d => {
           const data = d.data();
+          const categoryId = data.category_id || data.categoryId; // Handle both just in case
           prodList.push({
             id: d.id,
             name: data.name,
             sku: data.sku,
-            category_id: data.categoryId,
-            category_name: catMap.get(data.categoryId) || 'Unknown',
+            category_id: categoryId,
+            category_name: data.category_name || catMap.get(categoryId) || 'Unknown',
             price: data.price,
             cost: data.cost,
+            imageUrl: data.imageUrl,
             qty: stockMap.get(d.id) || 0
           });
         });
@@ -259,8 +261,12 @@ export default function POS() {
                   product.qty <= 0 && "opacity-50 grayscale pointer-events-none"
                 )}
               >
-                <div className="w-full aspect-square bg-slate-50 rounded-lg mb-3 flex items-center justify-center text-slate-300">
-                  <Package className="w-6 h-6 md:w-8 md:h-8" />
+                <div className="w-full aspect-square bg-slate-50 rounded-lg mb-3 flex items-center justify-center text-slate-300 overflow-hidden border border-slate-100">
+                  {product.imageUrl ? (
+                    <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover transition-transform group-hover:scale-105" referrerPolicy="no-referrer" />
+                  ) : (
+                    <Package className="w-6 h-6 md:w-8 md:h-8" />
+                  )}
                 </div>
                 <div className="w-full">
                   <div className="flex justify-between items-start mb-1">

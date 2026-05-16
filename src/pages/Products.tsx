@@ -25,13 +25,15 @@ export default function Products() {
   const [updating, setUpdating] = useState<string | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [adjustingStock, setAdjustingStock] = useState<{id: string, name: string, qty: number} | null>(null);
   const [newProduct, setNewProduct] = useState({
     name: '',
     sku: '',
     category_id: 'cat-01',
     category_name: 'General Product',
     price: 0,
-    cost: 0
+    cost: 0,
+    imageUrl: ''
   });
 
   useEffect(() => {
@@ -63,24 +65,24 @@ export default function Products() {
     };
   }, [outletId]);
 
-  const handleAdjustStock = async (productId: string, currentQty: number) => {
-    if (!outletId) return;
-    const adjustAmount = window.prompt(`Adjust stock quantity (current: ${currentQty}):`, currentQty.toString());
+  const handleAdjustStock = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!outletId || !adjustingStock) return;
     
-    if (adjustAmount === null || isNaN(parseInt(adjustAmount))) return;
-    
-    const newQty = parseInt(adjustAmount);
-    setUpdating(productId);
+    setUpdating(adjustingStock.id);
+    const targetId = adjustingStock.id;
+    const targetQty = adjustingStock.qty;
     
     try {
-      const stockRef = doc(db, 'stocks', `${productId}-${outletId}`);
+      const stockRef = doc(db, 'stocks', `${targetId}-${outletId}`);
       await setDoc(stockRef, {
-        productId,
+        productId: targetId,
         outlet_id: outletId,
-        qty: newQty
+        qty: Number(targetQty)
       }, { merge: true });
+      setAdjustingStock(null);
     } catch (err) {
-      handleFirestoreError(err, OperationType.UPDATE, `stocks/${productId}-${outletId}`);
+      handleFirestoreError(err, OperationType.UPDATE, `stocks/${targetId}-${outletId}`);
     } finally {
       setUpdating(null);
     }
@@ -92,12 +94,17 @@ export default function Products() {
     
     setIsSaving(true);
     try {
-      await addDoc(collection(db, 'products'), {
+      const payload: any = {
         ...newProduct,
         price: Number(newProduct.price),
         cost: Number(newProduct.cost),
         createdAt: serverTimestamp()
-      });
+      };
+      
+      // Clean empty imageUrl
+      if (!payload.imageUrl) delete payload.imageUrl;
+
+      await addDoc(collection(db, 'products'), payload);
       setShowAddModal(false);
       setNewProduct({
         name: '',
@@ -105,7 +112,8 @@ export default function Products() {
         category_id: 'cat-01',
         category_name: 'General Product',
         price: 0,
-        cost: 0
+        cost: 0,
+        imageUrl: ''
       });
     } catch (err) {
       handleFirestoreError(err, OperationType.CREATE, 'products');
@@ -175,6 +183,30 @@ export default function Products() {
                       value={newProduct.name}
                       onChange={e => setNewProduct({...newProduct, name: e.target.value})}
                     />
+                  </div>
+
+                  <div className="flex gap-4">
+                    <div className="flex-1 space-y-1">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase">Product Image URL</label>
+                      <input 
+                        type="text" 
+                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none focus:ring-1 focus:ring-blue-500" 
+                        placeholder="https://images.unsplash.com/photo-..."
+                        value={newProduct.imageUrl}
+                        onChange={e => setNewProduct({...newProduct, imageUrl: e.target.value})}
+                      />
+                    </div>
+                    {newProduct.imageUrl && (
+                      <div className="w-12 h-12 rounded-lg bg-slate-100 border border-slate-200 overflow-hidden mt-6 shrink-0">
+                        <img 
+                          src={newProduct.imageUrl} 
+                          alt="Preview" 
+                          className="w-full h-full object-cover" 
+                          referrerPolicy="no-referrer"
+                          onError={(e) => (e.currentTarget.style.display = 'none')}
+                        />
+                      </div>
+                    )}
                   </div>
                   
                   <div className="grid grid-cols-2 gap-4">
@@ -253,6 +285,62 @@ export default function Products() {
         )}
       </AnimatePresence>
 
+      {/* Adjust Stock Modal */}
+      <AnimatePresence>
+        {adjustingStock && (
+          <>
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setAdjustingStock(null)}
+              className="fixed inset-0 bg-slate-900/40 backdrop-blur-[2px] z-[110]"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[320px] bg-white rounded-xl shadow-2xl z-[111] overflow-hidden border border-slate-200"
+            >
+              <form onSubmit={handleAdjustStock} className="p-6 space-y-4">
+                <div>
+                   <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Stock Adjustment</h4>
+                   <p className="text-sm font-bold text-slate-900 truncate">{adjustingStock.name}</p>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase">Set New Quantity</label>
+                  <input 
+                    autoFocus
+                    type="number"
+                    required
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg text-lg font-black text-blue-600 outline-none focus:ring-2 focus:ring-blue-500"
+                    value={adjustingStock.qty}
+                    onChange={e => setAdjustingStock({...adjustingStock, qty: Number(e.target.value)})}
+                  />
+                </div>
+
+                <div className="flex gap-2 pt-2">
+                   <button 
+                     type="button" 
+                     onClick={() => setAdjustingStock(null)}
+                     className="flex-1 py-2 text-[10px] font-bold uppercase tracking-widest text-slate-400 hover:text-slate-600 transition-all"
+                   >
+                     Cancel
+                   </button>
+                   <button 
+                     type="submit" 
+                     className="flex-1 bg-slate-900 text-white py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-blue-600 transition-all shadow-md"
+                   >
+                     Update
+                   </button>
+                </div>
+              </form>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 md:gap-8">
         <div className="lg:col-span-1 space-y-6">
           <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-5">
@@ -307,10 +395,21 @@ export default function Products() {
                    ) : filtered.map(p => {
                      const qty = stocks[p.id] || 0;
                      return (
-                       <tr key={p.id} className="hover:bg-slate-50 transition-colors">
+                       <tr key={p.id} className="group hover:bg-slate-50 transition-colors">
                          <td className="px-4 md:px-6 py-4">
-                            <div className="font-bold text-slate-900 whitespace-nowrap">{p.name}</div>
-                            <div className="text-[9px] text-blue-600 uppercase font-black whitespace-nowrap tracking-tighter">{p.category_name || 'General Product'}</div>
+                            <div className="flex items-center gap-3">
+                               <div className="w-8 h-8 rounded bg-slate-100 flex items-center justify-center text-slate-400 shrink-0 overflow-hidden border border-slate-200">
+                                  {p.imageUrl ? (
+                                    <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                                  ) : (
+                                    <Package className="w-4 h-4" />
+                                  )}
+                               </div>
+                               <div>
+                                  <div className="font-bold text-slate-900 whitespace-nowrap">{p.name}</div>
+                                  <div className="text-[9px] text-blue-600 uppercase font-black whitespace-nowrap tracking-tighter">{p.category_name || 'General Product'}</div>
+                               </div>
+                            </div>
                          </td>
                          <td className="px-4 md:px-6 py-4 font-mono font-bold text-slate-500">{p.sku}</td>
                          <td className="px-4 md:px-6 py-4">
@@ -328,17 +427,22 @@ export default function Products() {
                          <td className="px-4 md:px-6 py-4 text-right font-black text-slate-900">{formatCurrency(p.price)}</td>
                          <td className="px-4 md:px-6 py-4 text-right">
                             <button 
-                              onClick={() => handleAdjustStock(p.id, qty)}
+                              onClick={() => setAdjustingStock({ id: p.id, name: p.name, qty })}
                               disabled={updating === p.id}
                               className={cn(
-                                "p-2 rounded-lg transition-all",
-                                updating === p.id ? "bg-slate-100 text-slate-400" : "hover:bg-blue-50 text-blue-600"
+                                "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold text-[9px] uppercase tracking-wider transition-all",
+                                updating === p.id 
+                                  ? "bg-slate-100 text-slate-400" 
+                                  : "bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white border border-blue-100"
                               )}
                             >
                               {updating === p.id ? (
-                                <RefreshCw className="w-4 h-4 animate-spin" />
+                                <RefreshCw className="w-3 h-3 animate-spin" />
                               ) : (
-                                <Plus className="w-4 h-4" />
+                                <>
+                                  <Plus className="w-3 h-3" />
+                                  <span>Adjust Stock</span>
+                                </>
                               )}
                             </button>
                          </td>

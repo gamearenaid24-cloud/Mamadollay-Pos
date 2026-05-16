@@ -15,6 +15,13 @@ export interface Product {
   price: number;
   cost: number;
   qty: number;
+  imageUrl?: string;
+}
+
+export interface Stock {
+  productId: string;
+  outlet_id: string;
+  qty: number;
 }
 
 export interface Outlet {
